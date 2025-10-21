@@ -1,0 +1,167 @@
+report ZAVI_FINAL_PRG
+       no standard page heading line-size 255.
+
+TYPES : BEGIN OF STR_DATA,
+  MATNR TYPE MATNR,
+  MBRSH TYPE MBRSH,
+  MTART TYPE MTART,
+  MAKTX TYPE MAKTX,
+  MEINS TYPE MEINS,
+  KZSEL TYPE KZSEL,
+  END OF STR_DATA.
+
+  DATA: IT_DATA TYPE TABLE OF STR_DATA.
+  DATA: WA_DATA TYPE STR_DATA.
+  DATA : LV_FILE TYPE STRING.
+  DATA:  IT_BDCDATA TYPE TABLE OF  BDCDATA .
+  DATA: WA_BDCDATA TYPE BDCDATA.
+  DATA: IT_MESSTAB TYPE TABLE OF BDCMSGCOLL.
+  DATA: WA_MESSTAB TYPE BDCMSGCOLL.
+  DATA: LV_MESSAGE TYPE STRING.
+
+
+PARAMETERS : P_FILE TYPE LOCALFILE.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file.
+  CALL FUNCTION 'F4_FILENAME'
+   EXPORTING
+     PROGRAM_NAME        = SYST-CPROG
+     DYNPRO_NUMBER       = SYST-DYNNR
+     FIELD_NAME          = ' '
+   IMPORTING
+     FILE_NAME           = P_FILE
+            .
+
+
+*            .
+
+    START-OF-SELECTION.
+    LV_FILE = P_FILE.
+
+  CALL FUNCTION 'GUI_UPLOAD'
+    EXPORTING
+      filename                      = LV_FILE
+*     FILETYPE                      = 'ASC'
+      HAS_FIELD_SEPARATOR           = 'X'
+*     HEADER_LENGTH                 = 0
+*     READ_BY_LINE                  = 'X'
+*     DAT_MODE                      = ' '
+*     CODEPAGE                      = ' '
+*     IGNORE_CERR                   = ABAP_TRUE
+*     REPLACEMENT                   = '#'
+*     CHECK_BOM                     = ' '
+*     VIRUS_SCAN_PROFILE            =
+*     NO_AUTH_CHECK                 = ' '
+*   IMPORTING
+*     FILELENGTH                    =
+*     HEADER                        =
+    tables
+      data_tab                      = IT_DATA
+
+*   CHANGING
+*     ISSCANPERFORMED               = ' '
+   EXCEPTIONS
+     FILE_OPEN_ERROR               = 1
+     FILE_READ_ERROR               = 2
+     NO_BATCH                      = 3
+     GUI_REFUSE_FILETRANSFER       = 4
+     INVALID_TYPE                  = 5
+     NO_AUTHORITY                  = 6
+     UNKNOWN_ERROR                 = 7
+     BAD_DATA_FORMAT               = 8
+     HEADER_NOT_ALLOWED            = 9
+     SEPARATOR_NOT_ALLOWED         = 10
+     HEADER_TOO_LONG               = 11
+     UNKNOWN_DP_ERROR              = 12
+     ACCESS_DENIED                 = 13
+     DP_OUT_OF_MEMORY              = 14
+     DISK_FULL                     = 15
+     DP_TIMEOUT                    = 16
+     OTHERS                        = 17
+            .
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+* Include bdcrecx1_s:
+* The call transaction using is called WITH AUTHORITY-CHECK!
+* If you have own auth.-checks you can use include bdcrecx1 instead.
+
+
+*** End generated data section ***
+.
+
+LOOP AT IT_DATA INTO WA_DATA.
+if sy-subrc <> 0. exit. endif.
+
+perform bdc_dynpro      using 'SAPLMGMM' '0060'.
+perform bdc_field       using 'BDC_CURSOR'
+                              'RMMG1-MTART'.
+perform bdc_field       using 'BDC_OKCODE'
+                              '=ENTR'.
+perform bdc_field       using 'RMMG1-MATNR'
+                              WA_DATA-MATNR.
+perform bdc_field       using 'RMMG1-MBRSH'
+                              WA_DATA-MBRSH.
+perform bdc_field       using 'RMMG1-MTART'
+                              WA_DATA-MTART.
+perform bdc_dynpro      using 'SAPLMGMM' '0070'.
+perform bdc_field       using 'BDC_CURSOR'
+                              'MSICHTAUSW-DYTXT(01)'.
+perform bdc_field       using 'BDC_OKCODE'
+                              '=ENTR'.
+perform bdc_field       using 'MSICHTAUSW-KZSEL(01)'
+                              WA_DATA-KZSEL.
+perform bdc_dynpro      using 'SAPLMGMM' '4004'.
+perform bdc_field       using 'BDC_OKCODE'
+                              '/00'.
+perform bdc_field       using 'MAKT-MAKTX'
+                              WA_DATA-MAKTX.
+perform bdc_field       using 'BDC_CURSOR'
+                              'MARA-MEINS'.
+perform bdc_field       using 'MARA-MEINS'
+                              WA_DATA-MEINS.
+perform bdc_dynpro      using 'SAPLSPO1' '0300'.
+perform bdc_field       using 'BDC_OKCODE'
+                              '=YES'.
+call TRANSACTION 'MM01' USING IT_BDCDATA MODE 'N' UPDATE 'S'  MESSAGES INTO IT_MESSTAB.
+REFRESH IT_BDCDATA.
+*perform bdc_transaction using 'MM01'.
+
+*enddo.
+
+*perform close_group.
+*perform close_dataset using dataset.
+
+ENDLOOP.
+LOOP AT IT_MESSTAB INTO WA_MESSTAB.
+CALL FUNCTION 'MESSAGE_TEXT_BUILD'
+  EXPORTING
+    msgid                     = WA_MESSTAB-MSGID
+    msgnr                     = WA_MESSTAB-MSGNR
+   MSGV1                     = WA_MESSTAB-MSGV1
+   MSGV2                     = WA_MESSTAB-MSGV2
+   MSGV3                     = WA_MESSTAB-MSGV3
+   MSGV4                     = WA_MESSTAB-MSGV4
+ IMPORTING
+   MESSAGE_TEXT_OUTPUT       = LV_MESSAGE.
+          .
+
+  ENDLOOP.
+FORM BDC_DYNPRO USING PROGRAM DYNPRO.
+  CLEAR WA_BDCDATA.
+  WA_BDCDATA-PROGRAM  = PROGRAM.
+  WA_BDCDATA-DYNPRO   = DYNPRO.
+  WA_BDCDATA-DYNBEGIN = 'X'.
+  APPEND WA_BDCDATA TO IT_BDCDATA.
+ENDFORM.
+
+*----------------------------------------------------------------------*
+*        Insert field                                                  *
+*----------------------------------------------------------------------*
+FORM BDC_FIELD USING FNAM FVAL.
+
+    CLEAR WA_BDCDATA.
+    WA_BDCDATA-FNAM = FNAM.
+    WA_BDCDATA-FVAL = FVAL.
+    APPEND WA_BDCDATA TO IT_BDCDATA.
+ .
+ENDFORM.
