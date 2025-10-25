@@ -1,0 +1,179 @@
+*&---------------------------------------------------------------------*
+*& Report ZAVI_BAPI
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZAVI_BAPI.
+TYPES : BEGIN OF STR_DATA,
+  MATNR TYPE MATNR,
+  MBRSH TYPE MBRSH,
+  MTART TYPE MTART,
+  MAKTX TYPE MAKTX,
+  MEINS TYPE MEINS,
+  KZSEL TYPE KZSEL,
+  END OF STR_DATA.
+
+  DATA: IT_DATA TYPE TABLE OF STR_DATA.
+  DATA: WA_DATA TYPE STR_DATA.
+  DATA : LV_FILE TYPE STRING.
+
+  DATA: WA_HEADDATA TYPE BAPIMATHEAD.
+  DATA: WA_CLIENTDATA TYPE BAPI_MARA.
+  DATA: WA_CLIENTDATAX TYPE BAPI_MARAX.
+  DATA: IT_DESC TYPE TABLE OF BAPI_MAKT.
+  DATA: WA_DESC TYPE BAPI_MAKT.
+  DATA: WA_RETURN TYPE BAPIRET2.
+  DATA: IT_RETURN TYPE TABLE OF BAPIRET2.
+
+PARAMETERS : P_FILE TYPE LOCALFILE.
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file.
+  CALL FUNCTION 'F4_FILENAME'
+   EXPORTING
+     PROGRAM_NAME        = SYST-CPROG
+     DYNPRO_NUMBER       = SYST-DYNNR
+     FIELD_NAME          = ' '
+   IMPORTING
+     FILE_NAME           = P_FILE
+            .
+
+
+*            .
+
+    START-OF-SELECTION.
+    LV_FILE = P_FILE.
+
+  CALL FUNCTION 'GUI_UPLOAD'
+    EXPORTING
+      filename                      = LV_FILE
+*     FILETYPE                      = 'ASC'
+      HAS_FIELD_SEPARATOR           = 'X'
+*     HEADER_LENGTH                 = 0
+*     READ_BY_LINE                  = 'X'
+*     DAT_MODE                      = ' '
+*     CODEPAGE                      = ' '
+*     IGNORE_CERR                   = ABAP_TRUE
+*     REPLACEMENT                   = '#'
+*     CHECK_BOM                     = ' '
+*     VIRUS_SCAN_PROFILE            =
+*     NO_AUTH_CHECK                 = ' '
+*   IMPORTING
+*     FILELENGTH                    =
+*     HEADER                        =
+    tables
+      data_tab                      = IT_DATA
+
+*   CHANGING
+*     ISSCANPERFORMED               = ' '
+   EXCEPTIONS
+     FILE_OPEN_ERROR               = 1
+     FILE_READ_ERROR               = 2
+     NO_BATCH                      = 3
+     GUI_REFUSE_FILETRANSFER       = 4
+     INVALID_TYPE                  = 5
+     NO_AUTHORITY                  = 6
+     UNKNOWN_ERROR                 = 7
+     BAD_DATA_FORMAT               = 8
+     HEADER_NOT_ALLOWED            = 9
+     SEPARATOR_NOT_ALLOWED         = 10
+     HEADER_TOO_LONG               = 11
+     UNKNOWN_DP_ERROR              = 12
+     ACCESS_DENIED                 = 13
+     DP_OUT_OF_MEMORY              = 14
+     DISK_FULL                     = 15
+     DP_TIMEOUT                    = 16
+     OTHERS                        = 17
+            .
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+* Include bdcrecx1_s:
+* The call transaction using is called WITH AUTHORITY-CHECK!
+* If you have own auth.-checks you can use include bdcrecx1 instead.
+
+LOOP AT IT_DATA INTO WA_DATA.
+  WA_HEADDATA-MATERIAL = WA_DATA-MATNR.
+  WA_HEADDATA-IND_SECTOR = WA_DATA-MBRSH.
+  WA_HEADDATA-MATL_TYPE  = WA_DATA-MTART.
+ WA_HEADDATA-BASIC_VIEW = 'X'.
+
+  WA_CLIENTDATA-BASE_UOM = WA_DATA-MEINS.
+  WA_CLIENTDATAX-BASE_UOM = 'X'.
+  wa_desc-LANGU = SY-LANGU.
+  WA_DESC-MATL_DESC = WA_DATA-MAKTX.
+  APPEND WA_DESC TO IT_DESC.
+  CLEAR WA_DESC.
+
+  CALL FUNCTION 'BAPI_MATERIAL_SAVEDATA'
+    EXPORTING
+      headdata                    = WA_HEADDATA
+     CLIENTDATA                  =  WA_CLIENTDATA
+     CLIENTDATAX                 =  WA_CLIENTDATAX
+*     PLANTDATA                   =
+*     PLANTDATAX                  =
+*     FORECASTPARAMETERS          =
+*     FORECASTPARAMETERSX         =
+*     PLANNINGDATA                =
+*     PLANNINGDATAX               =
+*     STORAGELOCATIONDATA         =
+*     STORAGELOCATIONDATAX        =
+*     VALUATIONDATA               =
+*     VALUATIONDATAX              =
+*     WAREHOUSENUMBERDATA         =
+*     WAREHOUSENUMBERDATAX        =
+*     SALESDATA                   =
+*     SALESDATAX                  =
+*     STORAGETYPEDATA             =
+*     STORAGETYPEDATAX            =
+*     FLAG_ONLINE                 = ' '
+*     FLAG_CAD_CALL               = ' '
+*     NO_DEQUEUE                  = ' '
+*     NO_ROLLBACK_WORK            = ' '
+*     CLIENTDATACWM               =
+*     CLIENTDATACWMX              =
+*     VALUATIONDATACWM            =
+*     VALUATIONDATACWMX           =
+*     MATPLSTADATA                =
+*     MATPLSTADATAX               =
+*     MARC_APS_EXTDATA            =
+*     MARC_APS_EXTDATAX           =
+    IMPORTING
+       RETURN                      = WA_RETURN
+    TABLES
+       MATERIALDESCRIPTION         = IT_DESC
+*     UNITSOFMEASURE              =
+*     UNITSOFMEASUREX             =
+*     INTERNATIONALARTNOS         =
+*     MATERIALLONGTEXT            =
+*     TAXCLASSIFICATIONS          =
+*     RETURNMESSAGES              =
+*     PRTDATA                     =
+*     PRTDATAX                    =
+*     EXTENSIONIN                 =
+*     EXTENSIONINX                =
+*     UNITSOFMEASURECWM           =
+*     UNITSOFMEASURECWMX          =
+*     SEGMRPGENERALDATA           =
+*     SEGMRPGENERALDATAX          =
+*     SEGMRPQUANTITYDATA          =
+*     SEGMRPQUANTITYDATAX         =
+*     SEGVALUATIONTYPE            =
+*     SEGVALUATIONTYPEX           =
+*     SEGSALESSTATUS              =
+*     SEGSALESSTATUSX             =
+*     SEGWEIGHTVOLUME             =
+*     SEGWEIGHTVOLUMEX            =
+*     DEMAND_PENALTYDATA          =
+*     DEMAND_PENALTYDATAX         =
+*     NFMCHARGEWEIGHTS            =
+*     NFMCHARGEWEIGHTSX           =
+*     NFMSTRUCTURALWEIGHTS        =
+*     NFMSTRUCTURALWEIGHTSX       =
+            .
+APPEND WA_RETURN TO IT_RETURN.
+CLEAR : WA_RETURN,WA_HEADDATA,WA_CLIENTDATA,WA_CLIENTDATAX.
+REFRESH : IT_DESC.
+  ENDLOOP.
+
+  LOOP AT IT_RETURN Into WA_RETURN.
+    WRITE: WA_RETURN-MESSAGE.
+    ENDLOOP.
